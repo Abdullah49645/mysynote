@@ -86,6 +86,7 @@ export function buildToolDefs(store: GraphStore, engine: AudioEngine, log: LogFn
       execute: () => {
         const s = store.getState();
         return {
+          success: true,
           modules: Object.values(s.modules),
           connections: Object.values(s.connections),
           sequencer: s.sequencer,
@@ -224,7 +225,7 @@ export function buildToolDefs(store: GraphStore, engine: AudioEngine, log: LogFn
         "Returns a real-time quantitative snapshot of the current audio output from the actual AnalyserNode: peak frequency, low/mid/high band energy (0-1), peak amplitude, and whether the signal is clipping. Use this to verify how a change actually affected the sound.",
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
-      execute: () => engine.getSpectrum(),
+      execute: () => ({ success: true, ...engine.getSpectrum() }),
     },
     {
       name: "get_sequencer_state",
@@ -232,7 +233,7 @@ export function buildToolDefs(store: GraphStore, engine: AudioEngine, log: LogFn
       description: "Returns the current 8-step sequencer pattern, tempo, and transport state.",
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
-      execute: () => store.getState().sequencer,
+      execute: () => ({ success: true, ...store.getState().sequencer }),
     },
     {
       name: "set_sequencer_step",

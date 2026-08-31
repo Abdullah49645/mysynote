@@ -222,9 +222,10 @@ export function useMysynote() {
   );
 
   const resetToDefault = useCallback(() => {
+    engine.stopSequencer(); // stop scheduling + mute immediately, don't wait for the next reconcile
     store.resetToDefault();
     pushActivity("human", "Reset to default patch");
-  }, [store]);
+  }, [store, engine]);
 
   const runSelfTest = useCallback(async () => {
     setTestRunning(true);
@@ -253,7 +254,13 @@ export function useMysynote() {
           userGoal: goal,
           toolDefs,
           onToolCall: (name, args, result) => {
-            if (!result?.success) {
+            // Read-only tools (get_audio_graph_state, get_spectrum_analysis,
+            // get_sequencer_state) return their data directly and have no
+            // `success` field at all — only explicit `success: false` from
+            // the mutating tools' ToolResult union means an actual failure.
+            // Treating "no success field" as failure was logging every
+            // successful read as "failed".
+            if (result?.success === false) {
               const reason = result?.error ? `: ${result.error}` : "";
               pushActivity("agent", `${name} failed${reason}`);
             }
@@ -262,7 +269,13 @@ export function useMysynote() {
         setAgentReply(reply);
         pushActivity("agent", reply);
       } catch (err) {
-        const message = err instanceof GeminiAgentError ? err.message : String((err as Error)?.message ?? err);
+        const raw = err instanceof GeminiAgentError ? err.message : String((err as Error)?.message ?? err);
+        const isQuota = /429|quota/i.test(raw);
+        const message = isQuota
+          ? "Gemini's free-tier quota is exhausted right now. Wait a bit and try again, or switch to a different API key/model above."
+          : raw.length > 220
+          ? raw.slice(0, 220) + "\u2026"
+          : raw;
         setAgentErrorMsg(message);
         pushActivity("system", `Agent error: ${message}`);
       } finally {

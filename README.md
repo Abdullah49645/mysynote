@@ -1,325 +1,164 @@
-Mysynote
+# Mysynote
 
-Agent-native Web Audio studio for the WebMCP Challenge 2026.
+**Sound design, with an agent in the room.**
 
-Sound design, with an agent in the room.
+Mysynote is a browser-native sound-design studio where a human and an AI agent
+operate the *same live* Web Audio graph — not a chat window next to a
+synthesizer, one shared instrument both can act on, in real time, through
+[WebMCP](https://github.com/webmachinelearning/webmcp).
 
-Mysynote is a browser-based modular synthesizer where humans and AI agents can work with the same live sound-design state. Agents can inspect the current patch, manipulate modules and connections, analyze the sound, and respect constraints placed by the user.
+Built for the [OpenAI WebMCP Challenge](https://webmcp.devpost.com).
 
-Live Demo
+---
 
-Production: https://mysynote.vercel.app
+## Why WebMCP fits this problem
 
-Mysynote is deployed as a standard Next.js application and exposes its agent capabilities through the WebMCP document.modelContext API.
+Before WebMCP, an AI could only *describe* how to modify a synthesizer —
+"lower the cutoff, add some drive" — and a person had to translate that back
+into clicks. There was no shared, structured state an agent could inspect or
+safely act on, so "AI-assisted" creative tools were really just AI-narrated
+tools.
 
-Run Locally
+WebMCP changes what's possible in a specific way: the browser can expose the
+*actual* structured state of an app — not a scraped DOM, not a guessed UI
+affordance — as tools an agent calls directly, with real inputs, real
+outputs, and enforceable constraints. Mysynote is built to make that
+difference undeniable in under a minute of use:
 
-npm install
-npm run dev
+- **The agent inspects real state**, not a screenshot or a text description —
+  `get_audio_graph_state` returns the actual module graph, parameter values,
+  lock states, cable routing, and sequencer pattern.
+- **The agent acts on the real instrument**, not a simulation of it —
+  `set_module_param`, `patch_cable`, and `spawn_module` mutate the same
+  `AudioNode` graph that's actually making sound, live.
+- **The human's constraints are enforced by the tool, not by the agent's good
+  behavior.** Lock a parameter and `set_module_param` rejects the write with
+  a structured `PARAMETER_LOCKED` error — the agent cannot talk its way past
+  it, because the constraint lives in the tool implementation, not in a
+  system prompt it could ignore or misread.
 
-Open http://localhost:3000, then press Play to hear the default patch:
+That last point is the crux of the pitch: **WebMCP doesn't just let an agent
+do things a human could do faster — it lets a human define hard boundaries an
+agent is structurally unable to cross, while still collaborating in real
+time.** That's a new capability, not an accelerated old one.
 
-Sequencer → Oscillator → Filter → Distortion → Delay → Master
+## What people and agents can now do together
 
-What Mysynote Does
+- A person builds and tweaks a patch by hand — dragging modules, patching
+  cables, turning knobs — exactly as before.
+- They lock the parameters they've deliberately chosen (say, the oscillator's
+  pitch and waveform) and hand the rest to an agent: *"make this darker and
+  wider, don't touch what I locked."*
+- The agent reads the live graph, works around the locked parameters,
+  changes what's actually allowed, and checks its own work against a real
+  spectrum analysis — not a description of one.
+- The person can interrupt at any point — drag a slider mid-agent-turn — and
+  the agent's next `get_audio_graph_state` call sees that change immediately,
+  because there's only one graph, not two that need reconciling.
 
-Mysynote combines a hands-on modular synthesizer with an agent-accessible control surface.
+This pattern — shared live state, human-authored hard constraints, agent
+acting within them — generalizes well beyond audio: any creative or
+productivity tool where "let the AI help, but not with *that*" is a real
+need is a candidate for the same approach.
 
-Real Web Audio engine
+## How WebMCP is implemented
 
-lib/webaudio-engine.ts implements the synthesizer using real Web Audio API nodes. The audio graph is reconciled from the application’s authoritative state whenever the graph changes.
+Every tool is registered with the real browser API:
 
-One authoritative graph state
-
-lib/synth-graph.ts provides the central GraphStore.
-
-The UI, Web Audio engine, built-in agent, and WebMCP tools operate against the same underlying state rather than maintaining separate representations of the patch.
-
-This allows an agent to inspect the same state the human is currently seeing and modifying.
-
-Human-controlled modular synthesis
-
-Everything exposed to the agent is also usable directly by the human.
-
-The interface supports:
-
-* Adding modules from the module palette
-* Dragging connections between module ports
-* Removing cables
-* Removing modules
-* Adjusting parameters
-* Locking individual parameters
-* Editing the 8-step sequencer
-* Resetting to the deterministic demo patch
-
-Real modulation routing
-
-The default patch includes a genuine LFO-to-filter-cutoff modulation connection.
-
-The LFO is connected to the filter’s cutoff AudioParam rather than being treated as an ordinary audio connection. This same modulation route is represented in the graph state exposed to agents.
-
-Parameter locks
-
-Parameter locking is a core part of the human-agent interaction.
-
-Every parameter can be locked by the human. A WebMCP or built-in agent attempting to modify a locked parameter receives a structured PARAMETER_LOCKED rejection from the underlying graph store.
-
-For example:
-
-“Lock my oscillator pitch, then make the sound warmer without changing the oscillator pitch or waveform.”
-
-The agent must work around the user’s constraint rather than simply being instructed to remember it.
-
-Rejected writes are also surfaced visibly on the relevant control in the UI.
-
-Spectrum analysis
-
-Mysynote exposes real-time spectrum information through a real AnalyserNode, including:
-
-* Peak frequency
-* Peak amplitude
-* Low-band energy
-* Mid-band energy
-* High-band energy
-* Clipping information
-
-This gives agents access to information about the resulting sound rather than only the synthesizer’s parameter values.
-
-Built-in acceptance self-test
-
-The SELF-TEST control runs checks against the live graph and audio engine, including:
-
-* Parameter-lock enforcement
-* Module spawn/patch/remove behavior
-* Spectrum analysis output
-* Invalid module/parameter handling
-* Graph state consistency
-
-Results are surfaced through the Agent Activity panel.
-
-WebMCP
-
-Mysynote exposes its synthesizer as a real WebMCP tool surface through:
-
+```js
 document.modelContext.registerTool({
-  name: "...",
-  description: "...",
-  inputSchema: { /* ... */ },
+  name: "set_module_param",
+  description: "Sets a parameter on a module...",
+  inputSchema: { type: "object", properties: { /* ... */ }, required: [/* ... */] },
   execute: async (input) => { /* ... */ }
 });
-
-The current tool surface contains 12 tools:
-
-clear_graph
-get_audio_graph_state
-get_sequencer_state
-get_spectrum_analysis
-lock_parameter
-patch_cable
-remove_cable
-remove_module
-set_module_param
-set_sequencer_step
-spawn_module
-unlock_parameter
-
-These tools allow an agent to reason about and manipulate the actual synthesizer rather than attempting to operate the interface through clicks and visual guessing.
-
-Verified WebMCP integration
-
-The production deployment has been tested in Chrome with WebMCP enabled.
-
-The following has been verified against the live application:
-
-* document.modelContext is available.
-* The WebMCP API exposes getTools, registerTool, and executeTool.
-* Mysynote registers all 12 tools.
-* get_audio_graph_state can be discovered through getTools().
-* get_audio_graph_state has been successfully executed through the browser’s WebMCP API.
-* The returned result contains the live audio graph, including modules, parameters, connections, sequencer state, and transport state.
-
-The WebMCP implementation is therefore not a simulated UI indicator; the deployed application exposes executable WebMCP tools.
-
-Built-in Gemini Agent
-
-Mysynote also includes an in-app Gemini-powered agent.
-
-This provides a second way to experience the agent interaction without requiring the user to operate a WebMCP-enabled browser.
-
-The agent can:
-
-1. Inspect the current synth state.
-2. Decide which tools to use.
-3. Modify the graph.
-4. Respect parameter locks.
-5. Report its actions through the Agent Activity panel.
-
-To use it:
-
-1. Obtain a Gemini API key.
-2. Open Mysynote.
-3. Paste the key into the Gemini API key field.
-4. Enter a natural-language sound-design request.
-5. Press Send.
-
-For example:
-
-“Make this warmer and wider, but don’t touch the oscillator pitch or waveform.”
-
-The key is entered directly by the user and is intended to remain client-side rather than being stored as a server-side environment variable.
-
-Why both Gemini and WebMCP?
-
-The built-in Gemini agent demonstrates an agent operating inside the application, while WebMCP exposes the same underlying capabilities to compatible external agents.
-
-The goal is not simply to add an AI chatbot to a synthesizer.
-
-The goal is to make the synthesizer itself agent-accessible.
-
-Agent Activity
-
-The Agent Activity panel provides visible feedback about operations performed by the human and agent.
-
-It intentionally shows concise action-level information rather than exposing chain-of-thought.
-
-Examples include:
-
-Read current audio graph
-Set filter cutoff
-Set distortion drive
-Locked oscillator frequency
-Rejected write: PARAMETER_LOCKED
-
-This makes agent actions observable and gives the user a clear indication of what actually happened to the patch.
-
-Architecture
-
-                     ┌──────────────────────┐
-                     │      Human UI        │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌──────────────────────┐
-                     │     GraphStore       │
-                     │  authoritative state │
-                     └───────┬───────┬──────┘
-                             │       │
-                ┌────────────┘       └─────────────┐
-                ▼                                  ▼
-       ┌─────────────────┐                ┌─────────────────┐
-       │  Web Audio      │                │  Agent Tools    │
-       │  Engine         │                │                 │
-       └─────────────────┘                └────────┬────────┘
-                                                   │
-                                  ┌────────────────┴──────────────┐
-                                  ▼                               ▼
-                         Built-in Gemini                  External WebMCP
-                              Agent                           Agents
-
-The important architectural property is that these paths converge on the same underlying graph operations.
-
-There is no separate fake “agent state” used only for demonstrations.
-
-Local Development Harness
-
-For development environments where WebMCP is unavailable, Mysynote also exposes the underlying tool implementations through:
-
-window.__mysynoteDevTools
-
-Examples:
-
-window.__mysynoteDevTools.get_audio_graph_state()
-window.__mysynoteDevTools.set_module_param(
-  "filter-1",
-  "cutoff",
-  800
-)
-window.__mysynoteDevTools.spawn_module(
-  "delay",
-  900,
-  400
-)
-
-The application header reports whether the browser’s document.modelContext API is currently detected.
-
-Acceptance Checks
-
-The project includes validation for the core agent interaction:
-
-* App boots into a ready state.
-* Play starts the sequencer.
-* Parameter locks prevent protected writes.
-* Modules can be spawned and removed.
-* Cables can be created and removed.
-* Spectrum analysis is sourced from the Web Audio analyser.
-* UI parameter changes are immediately reflected in graph state.
-* WebMCP tools expose the same underlying operations.
-
-The production WebMCP surface has additionally been manually exercised in a WebMCP-enabled Chrome environment.
-
-Design
-
-Mysynote uses a dark studio-style interface inspired by physical modular hardware.
-
-The visual language separates different interaction types:
-
-* Cyan — agent/output signal
-* Magenta — human/lock actions
-* Amber — the Mysynote note mark and selected signature elements
-
-Modules are presented as rack-style panels with visible ports and animated cables. Cable activity responds to actual sequencer playback rather than relying on purely decorative animation.
-
-The interface is intentionally information-dense enough to make the state of the synthesizer understandable to both the human and the agent.
-
-Project Scope
-
-Mysynote intentionally focuses on agent-assisted sound design rather than attempting to become a full DAW.
-
-Out of scope:
-
-* Full DAW timeline
-* Multi-track recording
-* MIDI import
-* Piano roll
-* User accounts
-* Cloud project storage
-* Payments
-* Multi-user collaboration
-* AI-generated songs or lyrics
-
-The focus is the interaction between:
-
-human intent → live synthesizer state → agent actions → audible result
-
-Deployment
-
-Mysynote is a standard Next.js application and can be deployed to Vercel, Netlify, Cloudflare, Render, or another compatible hosting provider.
-
-For Vercel:
-
-1. Import the repository.
-2. Select the Next.js preset.
-3. Use the default build settings.
-4. Deploy.
-
-The production deployment currently runs at:
-
-https://mysynote.vercel.app
-
-The Gemini API key is entered by the user at runtime, so no Gemini environment variable is required for the deployment.
-
-Open Source
-
-Mysynote is released under the MIT License.
-
-See LICENSE.
-
-Challenge
-
-Built for the WebMCP Challenge 2026.
-
-The project explores a simple question:
-
-What changes when an AI agent isn’t just telling you how to use a creative tool, but can actually operate the live tool alongside you?
-
-Mysynote’s answer is a synthesizer where the agent can inspect the current graph, make structured changes, analyze the resulting sound, and work within constraints established by the human.
+```
+
+See [`lib/webmcp-tools.ts`](./lib/webmcp-tools.ts) for the full set. Mysynote
+registers 12 tools covering graph inspection, module/cable creation and
+removal, parameter get/set with lock enforcement, spectrum analysis, and
+sequencer control:
+
+`get_audio_graph_state` · `spawn_module` · `remove_module` · `patch_cable` ·
+`remove_cable` · `set_module_param` · `lock_parameter` · `unlock_parameter` ·
+`get_spectrum_analysis` · `get_sequencer_state` · `set_sequencer_step` ·
+`clear_graph`
+
+A few implementation details worth knowing:
+
+- **One implementation, every consumer.** `buildToolDefs()` in
+  `lib/webmcp-tools.ts` is the single source of truth. `document.modelContext`,
+  a local dev harness (`window.__mysynoteDevTools`), and the in-app Gemini
+  agent (below) all call the exact same functions — there's no second,
+  simplified implementation anywhere that could drift from what a real agent
+  gets.
+- **Spec-correct return shape.** Results returned to `document.modelContext`
+  are wrapped as MCP content blocks (`{ content: [{ type: "text", text }] }`),
+  matching the reference implementations rather than returning bare objects.
+- **Registers on both current API surfaces.** Checks `document.modelContext`
+  first, falls back to `navigator.modelContext` (the older, still-shipped
+  alias), and passes an `AbortController` signal per the current per-tool
+  registration lifecycle.
+- **Locks are enforced in the tool, not the prompt.** `GraphStore.setParam`
+  rejects a write to a locked parameter before it ever reaches the audio
+  engine — see [`lib/synth-graph.ts`](./lib/synth-graph.ts).
+
+**Verified working**: tested directly against Chrome 149+ with
+`chrome://flags/#enable-webmcp-testing` enabled — `document.modelContext`
+returns a real `ModelContext` object, `getTools()` lists all 12 registered
+tools, and `executeTool()` successfully returns the live audio graph state.
+
+## A live agent, without requiring a paid API
+
+Since judges test through ChatGPT's in-app browser or WebMCP-enabled Chrome,
+the WebMCP tools above don't depend on any specific AI provider — that's the
+point of the standard. For anyone testing locally or wanting a live demo
+without a WebMCP-enabled browser on hand, Mysynote also ships an in-app agent
+console (bottom right) that runs a real Gemini function-calling loop against
+the *same* tool implementations. Paste a free [Gemini API
+key](https://aistudio.google.com/apikey), type a goal, and watch it inspect
+the graph, respect your locks, and change the sound — no server, no stored
+key (kept in that browser tab's `sessionStorage` only).
+
+## Running locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`, press **Play**, and you'll hear the default
+patch: `Sequencer → Oscillator → Filter (LFO-modulated cutoff) → Distortion →
+Delay → Master`.
+
+No environment variables or backend are required — the audio engine is
+100% client-side Web Audio, and the optional Gemini key is entered in the UI.
+
+## What's in the box
+
+- **Real Web Audio engine** (`lib/webaudio-engine.ts`) — every module is a
+  real `AudioNode`; the graph is reconciled from state on every change.
+- **Single authoritative state** (`lib/synth-graph.ts`) — the UI, the audio
+  engine, and every tool path read/write through one `GraphStore`.
+- **Full manual control for the human**, matching what the agent can do —
+  spawn any module, drag-patch cables between ports, delete modules/cables,
+  lock/unlock any parameter.
+- **Real modulation routing** — an LFO modulates the filter's cutoff via a
+  genuine `AudioParam` connection, not another audio-signal input.
+- **Built-in acceptance self-test** — the header's **Self-test** button runs
+  a condensed version of a full acceptance checklist against the live
+  store/engine and reports pass/fail, so correctness isn't just asserted.
+- **8-step sequencer**, draggable graph with animated signal-flow cables, and
+  an Agent Activity log showing concise, human-readable actions — never raw
+  chain-of-thought.
+
+## Explicitly out of scope
+
+Full DAW timeline, MIDI import, multi-track recording, piano roll, user
+accounts, payments, cloud project storage, multi-human collaboration, AI
+music/lyrics generation. None of it serves the core thesis — a human and an
+agent sharing one live, constrained instrument — so none of it is here.
+
+## License
+
+[MIT](./LICENSE)

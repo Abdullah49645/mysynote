@@ -111,6 +111,16 @@ export class AudioEngine {
 
   private reconcile(state: GraphState) {
     if (!this.ctx) return;
+    // Self-healing invariant: whatever set state.sequencer.isPlaying to
+    // false (Stop, Reset, clear_graph, a future code path we haven't
+    // thought of) must not be trusted to also have stopped the actual
+    // scheduling loop. If the store says "not playing" but our internal
+    // timer disagrees, kill the timer here so audio can never keep
+    // generating notes after the UI says it's stopped.
+    if (!state.sequencer.isPlaying && this.sequencerTimer) {
+      this.stopScheduling();
+      this.muteAllVoicesNow();
+    }
     // Remove stale nodes
     for (const id of Array.from(this.nodes.keys())) {
       if (!state.modules[id]) this.destroyNode(id);
@@ -384,11 +394,29 @@ export class AudioEngine {
   }
 
   stopSequencer() {
-    if (this.sequencerTimer) window.clearTimeout(this.sequencerTimer);
-    this.sequencerTimer = null;
+    this.stopScheduling();
+    this.muteAllVoicesNow();
     this.store.setSequencerPlaying(false);
     this.store.setTransport("PAUSED");
     this.store.setCurrentStep(-1);
+  }
+
+  /** Clears the JS scheduling timer only — does not touch store state. Safe to call from reconcile(). */
+  private stopScheduling() {
+    if (this.sequencerTimer) window.clearTimeout(this.sequencerTimer);
+    this.sequencerTimer = null;
+  }
+
+  /** Cancels any in-flight envelope ramps so Stop/Reset is immediate and silent, not a fade-out. */
+  private muteAllVoicesNow() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (const bundle of this.nodes.values()) {
+      if (bundle.oscGain) {
+        bundle.oscGain.gain.cancelScheduledValues(now);
+        bundle.oscGain.gain.setValueAtTime(0.0001, now);
+      }
+    }
   }
 
   private scheduleLoop = () => {

@@ -50,7 +50,7 @@ export default function SpectrumVisualizer({
   }, [getFrequencyData, getSpectrum]);
 
   return (
-    <div className="flex h-full flex-col gap-2 border-r border-studio-line bg-studio-panel p-3">
+    <div className="flex h-full min-h-0 flex-col gap-2 border-r border-studio-line bg-studio-panel p-3">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 font-mono text-[11px] text-studio-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-cyan-glow/70" />

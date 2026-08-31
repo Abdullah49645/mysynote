@@ -74,7 +74,7 @@ export default function Page() {
 
       <ModulePalette onSpawn={handleSpawn} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <SynthCanvas
           graph={state}
           onMoveModule={moveModule}
@@ -87,7 +87,7 @@ export default function Page() {
           isPlaying={isPlaying}
         />
 
-        <div className="grid w-[440px] shrink-0 grid-rows-[1fr_1fr_auto] border-l border-studio-line">
+        <div className="grid min-h-0 w-[440px] shrink-0 grid-rows-[1fr_1fr_auto] border-l border-studio-line">
           <SpectrumVisualizer
             getFrequencyData={getFrequencyData}
             getSpectrum={getSpectrum}

@@ -47,8 +47,8 @@ export default function AgentConsole({
   ];
 
   return (
-    <div className="flex h-full flex-col gap-2 border-t border-studio-line bg-studio-panel p-3">
-      <div className="flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col gap-2 border-t border-studio-line bg-studio-panel p-3">
+      <div className="flex shrink-0 items-center justify-between">
         <span className="flex items-center gap-1.5 font-mono text-[11px] text-studio-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-glow/80" />
           Ask the agent
@@ -84,7 +84,7 @@ export default function AgentConsole({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <input
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
@@ -103,12 +103,12 @@ export default function AgentConsole({
       </div>
 
       {!apiKey && (
-        <p className="font-mono text-[10px] text-studio-muted/70">
+        <p className="shrink-0 font-mono text-[10px] text-studio-muted/70">
           Paste a Gemini API key above to enable a live agent loop (kept only in this tab).
         </p>
       )}
 
-      <div className="flex flex-wrap gap-1">
+      <div className="flex shrink-0 flex-wrap gap-1">
         {PRESETS.map((preset) => (
           <button
             key={preset}
@@ -122,11 +122,20 @@ export default function AgentConsole({
         ))}
       </div>
 
-      {errorMsg && <p className="font-mono text-[10px] text-magenta-glow">{errorMsg}</p>}
-
-      {reply && !running && (
-        <div className="rounded border border-studio-line bg-studio-panel2/60 px-2 py-1.5 font-mono text-[11px] text-studio-text/90">
-          {reply}
+      {/* Error/reply text is capped and internally scrollable so a long
+          message (e.g. a verbose API error) can't grow this panel tall
+          enough to squeeze the Spectrum/Activity panels above it out of
+          view — the same min-height blowout class of bug fixed there. */}
+      {(errorMsg || (reply && !running)) && (
+        <div className="min-h-0 max-h-24 flex-1 overflow-y-auto">
+          {errorMsg && (
+            <p className="whitespace-pre-wrap break-words font-mono text-[10px] text-magenta-glow">{errorMsg}</p>
+          )}
+          {reply && !running && (
+            <div className="whitespace-pre-wrap break-words rounded border border-studio-line bg-studio-panel2/60 px-2 py-1.5 font-mono text-[11px] text-studio-text/90">
+              {reply}
+            </div>
+          )}
         </div>
       )}
     </div>

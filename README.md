@@ -114,11 +114,20 @@ Since judges test through ChatGPT's in-app browser or WebMCP-enabled Chrome,
 the WebMCP tools above don't depend on any specific AI provider — that's the
 point of the standard. For anyone testing locally or wanting a live demo
 without a WebMCP-enabled browser on hand, Mysynote also ships an in-app agent
-console (bottom right) that runs a real Gemini function-calling loop against
-the *same* tool implementations. Paste a free [Gemini API
-key](https://aistudio.google.com/apikey), type a goal, and watch it inspect
-the graph, respect your locks, and change the sound — no server, no stored
-key (kept in that browser tab's `sessionStorage` only).
+console (bottom right) that runs a real function-calling loop against the
+*same* tool implementations, with a choice of provider: **Gemini** or
+**Claude** (Anthropic). Paste your own API key, type a goal, and watch it
+inspect the graph, respect your locks, and change the sound — no server, no
+stored key (kept in that browser tab's `sessionStorage` only, per provider).
+
+**Why not OpenAI too?** We looked into it. OpenAI's Chat Completions/Responses
+API doesn't support direct browser-to-API requests — there's no CORS opt-in
+the way Gemini and Anthropic both provide (Anthropic explicitly ships an
+`anthropic-dangerous-direct-browser-access` header for exactly this use case).
+Adding an OpenAI option without a server-side proxy holding the key would mean
+shipping a button that fails for every user with a cryptic CORS error, so we
+left it out rather than ship something broken. A proxy is a reasonable follow
+-up if it's ever worth the added backend dependency.
 
 ## Running locally
 

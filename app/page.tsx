@@ -87,7 +87,7 @@ export default function Page() {
           isPlaying={isPlaying}
         />
 
-        <div className="grid min-h-0 w-[440px] shrink-0 grid-rows-[1fr_1fr_auto] border-l border-studio-line">
+        <div className="grid min-h-0 w-[440px] shrink-0 grid-rows-[minmax(210px,1fr)_minmax(140px,1fr)_auto] border-l border-studio-line">
           <SpectrumVisualizer
             getFrequencyData={getFrequencyData}
             getSpectrum={getSpectrum}

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { GraphStore } from "./synth-graph";
 import { AudioEngine } from "./webaudio-engine";
 import { registerWebMcpTools, buildToolDefs } from "./webmcp-tools";
-import { runGeminiAgent, GeminiAgentError } from "./gemini-agent";
+import { runAgent, AgentRunError, AgentProvider } from "./agent";
 import { ActivityEntry, GraphState, ModuleType } from "@/types/synth";
 
 let storeSingleton: GraphStore | null = null;
@@ -240,7 +240,7 @@ export function useMysynote() {
   }, [store, engine]);
 
   const askAgent = useCallback(
-    async (goal: string, apiKey: string, model: string) => {
+    async (provider: AgentProvider, goal: string, apiKey: string, model: string) => {
       if (!goal.trim() || !apiKey.trim()) return;
       setAgentRunning(true);
       setAgentReply(null);
@@ -248,7 +248,8 @@ export function useMysynote() {
       pushActivity("human", `Asked the agent: "${goal}"`);
       const toolDefs = buildToolDefs(store, engine, pushActivity);
       try {
-        const reply = await runGeminiAgent({
+        const reply = await runAgent({
+          provider,
           apiKey,
           model,
           userGoal: goal,
@@ -269,10 +270,10 @@ export function useMysynote() {
         setAgentReply(reply);
         pushActivity("agent", reply);
       } catch (err) {
-        const raw = err instanceof GeminiAgentError ? err.message : String((err as Error)?.message ?? err);
+        const raw = err instanceof AgentRunError ? err.message : String((err as Error)?.message ?? err);
         const isQuota = /429|quota/i.test(raw);
         const message = isQuota
-          ? "Gemini's free-tier quota is exhausted right now. Wait a bit and try again, or switch to a different API key/model above."
+          ? "The API quota is exhausted right now. Wait a bit and try again, or switch to a different provider/key/model above."
           : raw.length > 220
           ? raw.slice(0, 220) + "\u2026"
           : raw;

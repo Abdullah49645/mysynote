@@ -318,8 +318,8 @@ export class AudioEngine {
       b.lfoOsc?.stop();
     } catch {}
     for (const key of Object.keys(b) as (keyof NodeBundle)[]) {
-      const n = b[key] as unknown as AudioNode | undefined;
-      if (n && "disconnect" in n) {
+      const n = b[key] as unknown;
+      if (n && typeof n === "object" && "disconnect" in n) {
         try {
           (n as AudioNode).disconnect();
         } catch {}

@@ -246,13 +246,20 @@ export function useMysynote() {
   const runSelfTest = useCallback(async () => {
     setTestRunning(true);
     pushActivity("system", "Running acceptance self-test\u2026");
-    const { steps, passed, total } = await runAcceptanceTest(store, engine);
-    for (const s of steps) {
-      pushActivity("system", `${s.pass ? "\u2713" : "\u2717"} ${s.label}${s.detail ? ` (${s.detail})` : ""}`);
+    try {
+      const { steps, passed, total } = await runAcceptanceTest(store, engine);
+      for (const s of steps) {
+        pushActivity("system", `${s.pass ? "\u2713" : "\u2717"} ${s.label}${s.detail ? ` (${s.detail})` : ""}`);
+      }
+      pushActivity("system", `Self-test complete: ${passed}/${total} passed`);
+      setTestResult({ passed, total });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      pushActivity("system", `\u2717 Self-test crashed: ${message}`);
+      setTestResult(null);
+    } finally {
+      setTestRunning(false);
     }
-    pushActivity("system", `Self-test complete: ${passed}/${total} passed`);
-    setTestResult({ passed, total });
-    setTestRunning(false);
   }, [store, engine]);
 
   const askAgent = useCallback(

@@ -7,7 +7,14 @@ const PROVIDERS: { id: AgentProvider; label: string; models: string[]; keyHint: 
   {
     id: "gemini",
     label: "Gemini",
-    models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+    models: [
+      "gemini-2.5-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-pro-preview",
+      "gemini-2.5-pro",
+    ],
     keyHint: "Gemini API key",
     keyUrl: "https://aistudio.google.com/apikey",
   },

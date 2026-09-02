@@ -205,18 +205,26 @@ export function buildToolDefs(store: GraphStore, engine: AudioEngine, log: LogFn
         properties: { moduleId: { type: "string" }, paramName: { type: "string" } },
         required: ["moduleId", "paramName"],
       },
-      execute: ({ moduleId, paramName }: { moduleId: string; paramName: string }) => store.setLock(moduleId, paramName, true),
+      execute: ({ moduleId, paramName }: { moduleId: string; paramName: string }) =>
+        store.setLock(moduleId, paramName, true, { source: "tool" }),
     },
     {
       name: "unlock_parameter",
       title: "Unlock parameter",
-      description: "Unlocks a previously locked parameter.",
+      description:
+        "Unlocks a previously locked parameter. Fails with LOCK_OWNED_BY_HUMAN if a human locked it \u2014 that lock can only be cleared from the UI, never by the agent.",
       inputSchema: {
         type: "object",
         properties: { moduleId: { type: "string" }, paramName: { type: "string" } },
         required: ["moduleId", "paramName"],
       },
-      execute: ({ moduleId, paramName }: { moduleId: string; paramName: string }) => store.setLock(moduleId, paramName, false),
+      execute: ({ moduleId, paramName }: { moduleId: string; paramName: string }) => {
+        const result = store.setLock(moduleId, paramName, false, { source: "tool" });
+        if (!result.success && result.error === "LOCK_OWNED_BY_HUMAN") {
+          log("agent", `${paramName} on ${moduleId} is locked by the human \u2014 cannot unlock it`);
+        }
+        return result;
+      },
     },
     {
       name: "get_spectrum_analysis",

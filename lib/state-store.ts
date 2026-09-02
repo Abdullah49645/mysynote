@@ -68,6 +68,22 @@ async function runAcceptanceTest(store: GraphStore, engine: AudioEngine): Promis
   const unlocked = store.setParam("osc-1", "frequency", 300);
   check("set_module_param succeeds once unlocked", unlocked.success && (unlocked as any).value === 300);
 
+  // This is the core guarantee the whole project is built on: a human lock
+  // is a hard boundary, not a suggestion. A tool call — including the agent
+  // calling unlock_parameter on itself — must not be able to clear it.
+  store.setLock("osc-1", "frequency", true, { source: "human" });
+  const toolUnlockAttempt = store.setLock("osc-1", "frequency", false, { source: "tool" });
+  check(
+    "agent cannot unlock a human-locked parameter",
+    !toolUnlockAttempt.success && (toolUnlockAttempt as any).error === "LOCK_OWNED_BY_HUMAN"
+  );
+  const stillBlocked = store.setParam("osc-1", "frequency", 500);
+  check(
+    "parameter stays locked after a rejected agent unlock attempt",
+    !stillBlocked.success && (stillBlocked as any).error === "PARAMETER_LOCKED"
+  );
+  store.setLock("osc-1", "frequency", false, { source: "human" });
+
   const spawn = store.spawnModule("gain", 900, 700);
   check("spawn_module creates a module present in state", spawn.success && !!store.getModule((spawn as any).module.id));
 
@@ -164,7 +180,7 @@ export function useMysynote() {
 
   const toggleLock = useCallback(
     (moduleId: string, paramName: string, locked: boolean) => {
-      const result = store.setLock(moduleId, paramName, locked);
+      const result = store.setLock(moduleId, paramName, locked, { source: "human" });
       if (result.success) pushActivity("human", `${locked ? "Locked" : "Unlocked"} ${moduleId}.${paramName}`);
       return result;
     },

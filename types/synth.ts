@@ -24,6 +24,9 @@ export interface ModuleParam {
   /** Allowed discrete values, for string-valued params like waveform/type. */
   options?: string[];
   isLocked: boolean;
+  /** Who currently holds this lock. Used to stop the agent from unlocking a
+   *  lock the human set — see GraphStore.setLock. Absent when unlocked. */
+  lockedBy?: "human" | "tool";
   unit?: string;
 }
 
@@ -95,6 +98,7 @@ export type ToolError =
   | "MODULE_NOT_FOUND"
   | "PARAMETER_NOT_FOUND"
   | "PARAMETER_LOCKED"
+  | "LOCK_OWNED_BY_HUMAN"
   | "INVALID_MODULE_TYPE"
   | "INVALID_CONNECTION"
   | "INVALID_VALUE"

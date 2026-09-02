@@ -91,7 +91,8 @@ export const AGENT_TOOL_SPECS: { name: string; description: string; schema: Reco
   },
   {
     name: "unlock_parameter",
-    description: "Unlocks a previously locked parameter.",
+    description:
+      "Unlocks a previously locked parameter. Fails with LOCK_OWNED_BY_HUMAN if a human locked it \u2014 that lock can only be cleared from the UI, never by you. Do not retry.",
     schema: {
       type: "object",
       properties: { moduleId: { type: "string" }, paramName: { type: "string" } },
@@ -218,7 +219,7 @@ async function runGeminiAgent(opts: AgentRunOptions): Promise<string> {
       opts.onToolCall?.(name, args, result);
       responseParts.push({ functionResponse: { name, response: result } });
     }
-    contents.push({ role: "function", parts: responseParts });
+    contents.push({ role: "user", parts: responseParts });
   }
 
   return "(The agent stopped after reaching the turn limit without a final summary.)";

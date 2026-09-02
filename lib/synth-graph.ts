@@ -290,7 +290,13 @@ export class GraphStore {
     return { success: true, moduleId, parameter: paramName, value: finalValue };
   }
 
-  setLock(moduleId: string, paramName: string, locked: boolean): ToolResult<{ moduleId: string; parameter: string; isLocked: boolean }> {
+  setLock(
+    moduleId: string,
+    paramName: string,
+    locked: boolean,
+    opts: { source?: "human" | "tool" } = {}
+  ): ToolResult<{ moduleId: string; parameter: string; isLocked: boolean }> {
+    const source = opts.source ?? "tool";
     const mod = this.state.modules[moduleId];
     if (!mod) return fail("MODULE_NOT_FOUND", `No module "${moduleId}".`, { moduleId });
     const param = mod.parameters[paramName];
@@ -299,9 +305,25 @@ export class GraphStore {
         moduleId,
         parameter: paramName,
       });
+    // A human-set lock is a hard boundary: only the human (source: "human",
+    // i.e. clicking the lock icon in the UI) can clear it. A tool call —
+    // whether from the in-app agent or a real WebMCP caller — cannot unlock
+    // its own way past a lock it didn't set, even by calling this tool
+    // directly instead of set_module_param.
+    if (!locked && param.isLocked && param.lockedBy === "human" && source !== "human") {
+      this.emitReject(moduleId, paramName, "LOCK_OWNED_BY_HUMAN");
+      return fail(
+        "LOCK_OWNED_BY_HUMAN",
+        `${paramName} on ${moduleId} was locked by the human and can only be unlocked from the UI.`,
+        { moduleId, parameter: paramName }
+      );
+    }
     this.set((d) => {
       const m = d.modules[moduleId];
-      m.parameters = { ...m.parameters, [paramName]: { ...m.parameters[paramName], isLocked: locked } };
+      m.parameters = {
+        ...m.parameters,
+        [paramName]: { ...m.parameters[paramName], isLocked: locked, lockedBy: locked ? source : undefined },
+      };
     });
     return { success: true, moduleId, parameter: paramName, isLocked: locked };
   }

@@ -106,6 +106,53 @@ body::after {
   }
 }
 
+/* Parameter sliders: without this, the browser falls back to its native
+   range-input thumb, which renders as a plain light/white square on top of
+   the dark UI. This replaces both the track and thumb with themed versions
+   on every engine so no default control chrome shows through. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: #232634;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4.5px;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #4ff2e0;
+  border: none;
+  box-shadow: 0 0 6px rgba(79, 242, 224, 0.6);
+}
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #6b7280;
+  box-shadow: none;
+}
+input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: #232634;
+}
+input[type="range"]::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #4ff2e0;
+  border: none;
+  box-shadow: 0 0 6px rgba(79, 242, 224, 0.6);
+}
+input[type="range"]:disabled::-moz-range-thumb {
+  background: #6b7280;
+  box-shadow: none;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
